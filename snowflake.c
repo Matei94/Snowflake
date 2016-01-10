@@ -10,8 +10,8 @@
 #define T 1
 #define F 0
 
-#define nrmax 1002
-#define ncmax 1002
+#define nrmax 1000
+#define ncmax 1000
 
 #define kappamax 64
 
