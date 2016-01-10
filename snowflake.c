@@ -1266,7 +1266,7 @@ printf("outfile:");
 sscanf("pltest", "%s", outfile);
 
 printf("graphicsfile:");
-sscanf("test.ppm", "%s", graphicsfile);
+sscanf("snowflake.ppm", "%s", graphicsfile);
 
 printf("po:");
 sscanf("gimp", "%s", po);
