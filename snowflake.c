@@ -24,18 +24,25 @@
 #define KAPPAMAX 64
 
 /* Parameters */
-#define RHO      0.58;
-#define RINIT    0;
-#define RHORINIT 1;
-#define BETA     2.0;
-#define ALPHA    0.0;
-#define THETA    0.002;
-#define KAPPA    0.05;
-#define MU       0.01;
-#define GAM      0.0000515;
-#define SIGMA    0.0;
-#define NR       250;
-#define SP       2;
+#define RHO_MIN    0.5
+#define RHO_MAX    0.9
+#define RINIT      0
+#define RHORINIT   1
+#define BETA_MIN   1.05
+#define BETA_MAX   3.0
+#define ALPHA_MIN  0.0
+#define ALPHA_MAX  0.3
+#define THETA_MIN  0.002
+#define THETA_MAX  0.009595
+#define KAPPA_MIN  0.01
+#define KAPPA_MAX  0.05
+#define MU_MIN     0.0
+#define MU_MAX     0.01
+#define GAM        0.0000515
+#define SIGMA_MIN -0.5
+#define SIGMA_MAX  0.0
+#define NR         250
+#define SP         2
 
 #define GRAPHICSFILE "snowflake.ppm"
 
@@ -381,6 +388,7 @@ void dynamicsfre() {
     for (j=1;((j<=i)&&(i+j<=nr-1));j++) {
       bpic[i][j]=apic[i][j];
     }
+  }
 
   for (i=1;i<=iup;i++) {
     for (j=1;((j<=i)&&(i+j<=nr-1));j++) {
@@ -627,6 +635,18 @@ void savesnowflake() {
 
   FILE *picf = fopen(GRAPHICSFILE, "w");
   fprintf(picf, "P3\n");
+
+  fprintf(picf, "#rho:%lf\n", rho);
+  fprintf(picf, "#h:%d\n",rinit);
+  fprintf(picf, "#p:%lf\n", rhorinit);
+  fprintf(picf, "#beta:%lf\n", beta);
+  fprintf(picf, "#alpha:%lf\n", alpha );
+  fprintf(picf, "#theta:%lf\n",theta);
+  fprintf(picf, "#kappa:%lf\n", kappa);
+  fprintf(picf, "#mu:%lf\n", mu);
+  fprintf(picf, "#gam:%lf\n",gam);
+  fprintf(picf, "#sigma:%lf\n",sigma);
+
   fprintf(picf, "%d %d\n", 2*(nc-2)+1, 2*(nr-2)+1);
   fprintf(picf, "255\n");
 
@@ -687,20 +707,28 @@ void savesnowflake() {
 }
 
 
+double myrand(double min, double max) {
+  double f = (double)rand() / RAND_MAX;
+  return min + f * (max - min);
+}
+
+
 /**
  * Parameter initialization
  */
 void set_parameters() {
-  rho      = RHO;
+  srand(time(NULL));
+
+  rho      = myrand(RHO_MIN, RHO_MAX);
   rinit    = RINIT;
   rhorinit = RHORINIT;
-  beta     = BETA;
-  alpha    = ALPHA;
-  theta    = THETA;
-  kappa    = KAPPA;
-  mu       = MU;
+  beta     = myrand(BETA_MIN, BETA_MAX);
+  alpha    = myrand(ALPHA_MIN, ALPHA_MAX);
+  theta    = myrand(THETA_MIN, THETA_MAX);
+  kappa    = myrand(KAPPA_MIN, KAPPA_MAX);
+  mu       = myrand(MU_MIN, MU_MAX);
   gam      = GAM;
-  sigma    = SIGMA;
+  sigma    = myrand(SIGMA_MIN, SIGMA_MAX);
   nr       = NR;
   nc       = nr;
   sp       = SP;
