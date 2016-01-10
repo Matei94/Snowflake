@@ -1006,20 +1006,6 @@ void savesnowflake() {
 
   picf = fopen(graphicsfile, "w");
   fprintf(picf, "P3\n");
-
-  fprintf(picf, "#rho:%lf\n", rho);
-  fprintf(picf, "#h:%d\n",rinit);
-  fprintf(picf, "#p:%lf\n", rhorinit);
-  fprintf(picf, "#beta:%lf\n", beta);
-  fprintf(picf, "#alpha:%lf\n", alpha );
-  fprintf(picf, "#theta:%lf\n",theta);
-  fprintf(picf, "#kappa:%lf\n", kappa);
-  fprintf(picf, "#mu:%lf\n", mu);
-  fprintf(picf, "#gam:%lf\n",gam);
-  fprintf(picf, "#sigma:%lf\n",sigma);
-  fprintf(picf, "#L:%d\n", nr);
-  fprintf(picf, "#Z:%d\n", sp);
-  fprintf(picf, "#: no : no : no \n");
   fprintf(picf, "%d %d\n", 2*(nc-2)+1, 2*(nr-2)+1);
   fprintf(picf, "255\n");
 
