@@ -51,13 +51,10 @@ int rinit;
 double rhorinit;
 
 int frchange;
-int twelvesided;
 
 double rho;
 
 int stop;
-
-char po[30];
 
 /* Graphics */
 
@@ -97,8 +94,6 @@ FILE *picf;
 FILE *prof;
 
 char graphicsfile[30];
-
-char comments[100];
 
 /*************************************************************************************************/
 
@@ -459,7 +454,7 @@ void initialize()
       for (j=1;((j<=i)&&(i+j<=nr-1));j++){
          x=myrand();
 
-   if (twelvesided ==0){
+
             if ((norminf(i-centeri,j-centerj)<=rinit)&&
                 (seminorm(i-centeri, j-centerj)<=rinit)&&
                 (x<=rhorinit)){
@@ -470,21 +465,7 @@ void initialize()
       else{
                 adif[i][j]=rho; apic[i][j]=0; afr[i][j]=0.0;ash[i][j]=0; alm[i][j]=0.0;
             }
-   }
-   else{
 
-            x1=(double)(i-centeri)/rinit; y1=(double)(j-centerj)/rinit;
-      if (shapecircle( (x1-y1)/sqrt(2.0), sqrt(3.0)*(x1+y1)/sqrt(2.0) )==1){
-         adif[i][j]=0.0; apic[i][j]=1; afr[i][j]=1; ash[i][j]=0; alm[i][j]=0.0;
-               k=norminf(i-centeri, j-centerj);
-               if (k>rnew) rnew=k;
-      }
-
-
-      else{
-               adif[i][j]=rho; apic[i][j]=0; afr[i][j]=0.0;ash[i][j]=0; alm[i][j]=0.0;
-            }
-   }
       }
    }
    rold=rnew;
@@ -994,127 +975,107 @@ void drawbuttons()
 }
 
 
-void savesnowflake()
+void savesnowflake() {
+  int i, j, i1, j1, k, pqn, kf;
+  char pqc[10];
+  double totalmass;
+  double y;
 
-{
+  void transform() {
+    int x1, y1, z1, n1;
+    n1 = nc-2;
+    x1 = j-n1;
+    y1 = n1-i;
+    while ((x1<0)||(y1>0)) {
+      if ((y1>0)&&(y1<=x1)) {
+        x1 = x1 - y1;
+        y1 = -y1;
+      } else if ((x1>0)&&(x1<=y1)) {
+        z1 = x1;
+        x1 = y1;
+        y1 = z1;
+      } else {
+        x1 = -x1;
+        y1 = -y1;
+      }
+    }
+    i1 = -y1 + 1;
+    j1 = x1 + 1;
+  }
 
-   int i,j,i1,j1,k,pqn,kf;
+  picf = fopen(graphicsfile, "w");
+  fprintf(picf, "P3\n");
 
-   char pqc[10];
+  fprintf(picf, "#rho:%lf\n", rho);
+  fprintf(picf, "#h:%d\n",rinit);
+  fprintf(picf, "#p:%lf\n", rhorinit);
+  fprintf(picf, "#beta:%lf\n", beta);
+  fprintf(picf, "#alpha:%lf\n", alpha );
+  fprintf(picf, "#theta:%lf\n",theta);
+  fprintf(picf, "#kappa:%lf\n", kappa);
+  fprintf(picf, "#mu:%lf\n", mu);
+  fprintf(picf, "#gam:%lf\n",gam);
+  fprintf(picf, "#sigma:%lf\n",sigma);
+  fprintf(picf, "#L:%d\n", nr);
+  fprintf(picf, "#Z:%d\n", sp);
+  fprintf(picf, "#: no : no : no \n");
+  fprintf(picf, "%d %d\n", 2*(nc-2)+1, 2*(nr-2)+1);
+  fprintf(picf, "255\n");
 
-/*  char po[30]="xv ";*/
+  buildbig();
 
-   double totalmass;
+  for (i = 0; i <= 2*(nr-2); i++) {
+    for (j = 0; j <= 2*(nc-2); j++) {
+      transform();
+      if (pq % 2 == 1) {
+        if (apic[i1][j1] == 0) {
+          k = floor(63.0*(adif[i1][j1]/(rho)));
+          fprintf(picf, "%d %d %d ",
+                  clroff[k].red   * 255 / 65535,
+                  clroff[k].green * 255 / 65535,
+                  clroff[k].blue  * 255 / 65535);
+        } else {
+          y = alm[i1][j1]+adif[i1][j1];
+          k = floor((33.0*y-alpha)/(beta-alpha)); if (k>32) k=32;
+          fprintf(picf, "%d %d %d ",
+                  clron[k].red   * 255 / 65535,
+                  clron[k].green * 255 / 65535,
+                  clron[k].blue  * 255 / 65535);
 
-   double y;
-
-
-   /*char po[30]="gimp ";*/
-
-
-
-   FILE *dum;
-
-
-   void transform() /* takes (i,j) from 0 ... 2(nc-2)+1, outputs (i1,j1) in the 4th quadrant*/
-
-{
-   int x1,y1,z1,n1;
-
-   n1=nc-2;
-   x1=j-n1; y1=n1-i;
-   while ((x1<0)||(y1>0)){
-      if((y1>0)&&(y1<=x1)){x1=x1-y1; y1=-y1;}
-      else if ((x1>0)&&(x1<=y1)){ z1=x1; x1=y1; y1=z1;}
-      else {x1=-x1; y1=-y1;}
-   }
-   i1=-y1+1; j1=x1+1;
-
-}
-
-
-   picf=fopen(graphicsfile, "w");
-   fprintf(picf, "P3\n");
-
-   fprintf(picf, "#rho:%lf\n", rho);
-   fprintf(picf, "#h:%d\n",rinit);
-   fprintf(picf, "#p:%lf\n", rhorinit);
-   fprintf(picf, "#beta:%lf\n", beta);
-   fprintf(picf, "#alpha:%lf\n", alpha );
-   fprintf(picf, "#theta:%lf\n",theta);
-   fprintf(picf, "#kappa:%lf\n", kappa);
-   fprintf(picf, "#mu:%lf\n", mu);
-   fprintf(picf, "#gam:%lf\n",gam);
-   fprintf(picf, "#sigma:%lf\n",sigma);
-
-   fprintf(picf, "#L:%d\n", nr);
-   fprintf(picf, "#Z:%d\n", sp);
-
-   fprintf(picf, "#: no : no : no \n");
-
-   fprintf(picf, "#: %s\n", po);
-   fprintf(picf, "#: %s\n", comments);
-
-   fprintf(picf, "%d %d\n", 2*(nc-2)+1, 2*(nr-2)+1);
-   fprintf(picf, "255\n");
-   buildbig();
-   printf("\n");
-
-   for (i=0;i<=2*(nr-2);i++){
-      for (j=0; j<= 2*(nc-2); j++){
-         transform();
-   if (pq%2==1){
-            if (apic[i1][j1]==0){
-
+        }
+      } else {
+        if (apic[i1][j1] == 0) {
           k=floor(63.0*(adif[i1][j1]/(rho)));
-    fprintf(picf,"%d %d %d ",
-                  clroff[k].red*255/65535, clroff[k].green*255/65535,clroff[k].blue*255/65535);
-            }
-            else {
-
-
-               y=alm[i1][j1]+adif[i1][j1];
-
-         k=floor((33.0*y-alpha)/(beta-alpha)); if (k>32) k=32;
-
-
-         fprintf(picf,"%d %d %d ", clron[k].red*255/65535,
-                                   clron[k].green*255/65535,clron[k].blue*255/65535);
-
-            }
-         }
-   else{
-      if (apic[i1][j1]==0){
-                k=floor(63.0*(adif[i1][j1]/(rho)));
-    fprintf(picf,"%d %d %d ",
-                  clroff[k].red*255/65535, clroff[k].green*255/65535,clroff[k].blue*255/65535);
-            }
-            else {
-         if (alm[i1][j1]>1+0.5*(beta-1.0)){
-                  if (alm[i1][j1]>=1+0.2*(beta-1.0)) k=12;
-                  if (alm[i1][j1]>=1+0.5*(beta-1.0)) k=13;
-                  if (alm[i1][j1]>=1+0.7*(beta-1.0)) k=14;
-                  if (alm[i1][j1]>=beta) k=15;
-                  fprintf(picf,"%d %d %d ",
-                    othp[k].red*255/65535,othp[k].green*255/65535,othp[k].blue*255/65535);
-         }
-         else{
-               k=ash[i1][j1];
-               k=k%kappamax;
-               fprintf(picf,"%d %d %d ",
-                       clr[k].red*255/65535,clr[k].green*255/65535,clr[k].blue*255/65535);
+          fprintf(picf, "%d %d %d ",
+                  clroff[k].red   * 255 / 65535,
+                  clroff[k].green * 255 / 65535,
+                  clroff[k].blue  * 255 / 65535);
+        } else {
+          if (alm[i1][j1]>1+0.5*(beta-1.0)) {
+            if (alm[i1][j1] >= 1+0.2*(beta-1.0)) k=12;
+            if (alm[i1][j1] >= 1+0.5*(beta-1.0)) k=13;
+            if (alm[i1][j1] >= 1+0.7*(beta-1.0)) k=14;
+            if (alm[i1][j1] >= beta)             k=15;
+            fprintf(picf, "%d %d %d ",
+                    othp[k].red   * 255 / 65535,
+                    othp[k].green * 255 / 65535,
+                    othp[k].blue  * 255 / 65535);
+          } else {
+            k = ash[i1][j1];
+            k = k % kappamax;
+            fprintf(picf,"%d %d %d ",
+                    clr[k].red   * 255 / 65535,
+                    clr[k].green * 255 / 65535,
+                    clr[k].blue  * 255 / 65535);
+          }
         }
       }
-   }
-       }
-       fprintf(picf, "\n");
     }
 
-    fclose(picf);
+    fprintf(picf, "\n");
+  }
 
-    strcat(po, " ");
-    strcat(po, graphicsfile);
-    dum = popen (po, "r");
+  fclose(picf);
 }
 
 
@@ -1134,10 +1095,6 @@ int main(int argc, char *argv[]) {
   rho = 0.58;
   rinit = 0;
 
-  twelvesided = 0; if (rinit < 0) {
-    rinit = -rinit; twelvesided = 1;
-  }
-
   rhorinit = 1;
   beta = 2.0;
   alpha = 0.0;
@@ -1151,8 +1108,6 @@ int main(int argc, char *argv[]) {
   sp = 2;
 
   sscanf("snowflake.ppm", "%s", graphicsfile);
-  sscanf("gimp", "%s", po);
-  sscanf("Test file", "%s", comments);
 
   td = XOpenDisplay("");
   ts = DefaultScreen(td);
