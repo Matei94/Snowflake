@@ -1062,6 +1062,7 @@ void savesnowflake() {
     fprintf(picf, "\n");
   }
 
+
   fclose(picf);
 }
 
