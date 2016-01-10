@@ -1,14 +1,14 @@
-/* gcc snowflake.c -lX11 -lm -o snowflake */
+/*** INCLUDES ************************************************************************************/
 
 #include <stdio.h>
-#include <math.h>
 #include <string.h>
+#include <stdbool.h>
+#include <math.h>
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
-#define T 1
-#define F 0
+/*************************************************************************************************/
 
 #define nrmax 1002
 #define ncmax 1002
@@ -436,7 +436,7 @@ void initialize()
 
    pq=0;
 
-   stop=F;parupdate=0;
+   stop=false;parupdate=0;
 
    srand48();
    t1=time(&t2);
@@ -623,7 +623,7 @@ void dynamicsunfre()
 
 
    iup=centeri+rnew+1;
-   frchange=F;
+   frchange=false;
 
    for (i=1;i<=iup;i++){
       for (j=1;((j<=i)&&(i+j<=nr-1));j++){
@@ -669,7 +669,7 @@ void dynamicsfre()
 
 
    iup=centeri+rnew+1;
-   frchange=F;
+   frchange=false;
 
 
    for (i=1;i<=iup;i++)
@@ -726,9 +726,9 @@ void dynamicsfre()
 
              alm[i][j]+=afr[i][j]; afr[i][j]=0.0;
              k=norminf(i-centeri, j-centerj);
-             if (k>rnew) rnew=k; if (rnew>2*nr/3) stop=T;
+             if (k>rnew) rnew=k; if (rnew>2*nr/3) stop=true;
              ash[i][j]=parash;
-             frchange=T;
+             frchange=true;
          }
       }
    }
@@ -759,7 +759,7 @@ void dynamicsfre1()
 
 
    iup=centeri+rnew+1;
-   frchange=F;
+   frchange=false;
 
 
    for (i=1;i<=iup;i++){
@@ -1370,7 +1370,7 @@ XSelectInput(td,tw,(ButtonPressMask|ExposureMask));
 
 XMapRaised(td,tw);
 
-fin=F;
+fin=false;
 
 XNextEvent(td,&te);
 
@@ -1385,7 +1385,7 @@ pq=0;
 
 
 
-while (fin==F){
+while (fin==false){
    XNextEvent(td,&te);
    switch(te.type){
 
@@ -1397,7 +1397,7 @@ while (fin==F){
          if ((posx>=10)&&(posx<=60) &&(posy>=10) && (posy<=30)){
 
             printf("QUIT\n");
-            fin=T;
+            fin=true;
          }
          else if ((posx>=65)&&(posx<=115) &&(posy>=10) &&
                   (posy<=30)){
@@ -1410,7 +1410,7 @@ while (fin==F){
             printf("play\n");
 
             while((XEventsQueued(td,QueuedAfterReading)==0)&&(pq!=-1)
-                   &&(stop==F)){
+                   &&(stop==false)){
                 noac=0;
                 pq++;
                 dynamics();
