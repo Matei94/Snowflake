@@ -96,10 +96,6 @@ FILE *picf;
 
 FILE *prof;
 
-char infile[30];
-
-char outfile[30];
-
 char graphicsfile[30];
 
 char comments[100];
@@ -998,72 +994,6 @@ void drawbuttons()
 }
 
 
-
-void skip()
-
-{
-   char dum;
-
-   dum=getchar();
-   while (dum!=':') dum=getchar();
-
-}
-
-
-void readpicture()
-
-{
-   int i,j,k;
-   double x;
-
-   picf=fopen(infile,"r");
-
-   for (i=0;i<nr;i++){
-      for (j=0;j<nc;j++){
-          fscanf(picf,"%lf", &x);
-          adif[i][j]=x;
-          fscanf(picf,"%d", &k);
-          apic[i][j]=k;
-          fscanf(picf,"%lf", &x);
-          afr[i][j]=x;
-          fscanf(picf,"%d", &k);
-          ash[i][j]=k;
-    fscanf(picf,"%lf", &x);
-          alm[i][j]=x;
-      }
-   }
-   fscanf(picf,"%d", &k);rold=k;
-   fscanf(picf,"%d", &k);rnew=k;
-   fscanf(picf,"%d", &k);pq=k;
-   fclose(picf);
-}
-
-void savepicture()
-
-{
-   int i,j;
-
-   picf=fopen(outfile, "w");
-
-
-   for (i=0;i<nr;i++){
-      for (j=0;j<nc;j++){
-         fprintf(picf, "%.10lf %d %.10lf %d %.10lf ", adif[i][j], apic[i][j],
-                                               afr[i][j], ash[i][j], alm[i][j]);
-      }
-
-   }
-   fprintf(picf, "%d %d ", rold, rnew);
-   fprintf(picf, "%d ", pq );
-   fclose(picf);
-
-}
-
-
-
-
-
-
 void savesnowflake()
 
 {
@@ -1220,8 +1150,6 @@ int main(int argc, char *argv[]) {
   nc = nr;
   sp = 2;
 
-  sscanf("pltest", "%s", infile);
-  sscanf("pltest", "%s", outfile);
   sscanf("snowflake.ppm", "%s", graphicsfile);
   sscanf("gimp", "%s", po);
   sscanf("Test file", "%s", comments);
@@ -1347,16 +1275,12 @@ int main(int argc, char *argv[]) {
 
         /* SAVE */
         else if ((posx>=175)&&(posx<=225) &&(posy>=10) && (posy<=30)) {
-          savepicture();
           savesnowflake();
         }
 
         /* READ */
         else if ((posx>=230)&&(posx<=280) &&(posy>=10) && (posy<=30)) {
-            readpicture();
-            dynamicspop1();
-            createbdry();
-            picturebig();
+          /* NO READ */
         }
 
         /* STEP */
