@@ -975,13 +975,7 @@ void drawbuttons()
 }
 
 
-void savesnowflake() {
-  int i, j, i1, j1, k, pqn, kf;
-  char pqc[10];
-  double totalmass;
-  double y;
-
-  void transform() {
+void transform(int i, int j, int *i1, int *j1) {
     int x1, y1, z1, n1;
     n1 = nc-2;
     x1 = j-n1;
@@ -999,9 +993,16 @@ void savesnowflake() {
         y1 = -y1;
       }
     }
-    i1 = -y1 + 1;
-    j1 = x1 + 1;
+    *i1 = -y1 + 1;
+    *j1 = x1 + 1;
   }
+
+
+void savesnowflake() {
+  int i, j, i1, j1, k, pqn, kf;
+  char pqc[10];
+  double totalmass;
+  double y;
 
   picf = fopen(graphicsfile, "w");
   fprintf(picf, "P3\n");
@@ -1026,7 +1027,7 @@ void savesnowflake() {
 
   for (i = 0; i <= 2*(nr-2); i++) {
     for (j = 0; j <= 2*(nc-2); j++) {
-      transform();
+      transform(i, j, &i1, &j1);
       if (pq % 2 == 1) {
         if (apic[i1][j1] == 0) {
           k = floor(63.0*(adif[i1][j1]/(rho)));
