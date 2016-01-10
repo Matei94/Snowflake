@@ -83,7 +83,6 @@ int ts;
 unsigned long tf, tb;
 char tbuf[8];
 int kc;
-
 int noac, pq;
 
 Colormap cmap;
@@ -96,6 +95,9 @@ extern int red[125], green[125], blue[125];
 
 /*************************************************************************************************/
 
+
+
+/*** FUNCTIONS ***********************************************************************************/
 
 /**
  * Create hexagonal boundary
@@ -173,6 +175,7 @@ void buildbig() {
   }
 }
 
+
 /**
  * Check mass
  */
@@ -192,6 +195,7 @@ void checkmass() {
   totalmass+=adif[1][1]+afr[1][1]+alm[i][j];
 }
 
+
 /**
  * Algorithm initialization
  */
@@ -199,7 +203,7 @@ void initialize() {
   int i, j, k;
   double x;
 
-  pq=0;
+  pq = 0;
   stop = false;
   parupdate = 0;
 
@@ -241,227 +245,208 @@ void initialize() {
 }
 
 
-void dynamicsdif()
+/**
+ * Dynamics
+ */
+void dynamicsdif() {
+  double b[NRMAX][NCMAX];
+  int i,j;
+  int id,iu,jl,jr;
+  int count;
+  double masscorrection;
+  int nrhalf;
 
-{
-
-   double b[NRMAX][NCMAX];
-   int i,j;
-   int id,iu,jl,jr;
-   int count;
-   double masscorrection;
-   int nrhalf;
-
-
-   for (i=1;i<nr;i++)
-      for (j=1;((j<=i)&&(i+j<=nr-1));j++){
-          b[i][j]=0.0;
-   }
-   nrhalf=nr/2;
-   if (nr%2==0)
-      masscorrection=(1.0/7.0)*(adif[nr-2][2]+adif[nr-3][3]-2.0*adif[nrhalf][nr-nrhalf]);
-   else
-     masscorrection=(1.0/7.0)*(adif[nr-2][2]+adif[nr-3][3]-adif[nrhalf][nr-nrhalf]-adif[nrhalf+1][nr-nrhalf-1]);
-
-   for (i=1;i<nr;i++){
-      for (j=1;((j<=i)&&(i+j<=nr-1));j++){
-         if (apic[i][j]==0){
-            id=(i+1);iu=(i-1);
-            jr=(j+1); jl=(j-1);
-            count=0;
-            if (apic[id][j]==0) count++;
-            if (apic[iu][j]==0) count++;
-            if (apic[i][jl]==0) count++;
-            if (apic[i][jr]==0) count++;
-            if (apic[iu][jr]==0) count++;
-            if (apic[id][jl]==0) count++;
-
-      if (count==0) b[i][j]=adif[i][j];
-      else{
-
-    b[i][j]=(1.0-(double)count/7.0)*adif[i][j]+
-                      (adif[id][j]*(1.0-apic[id][j])+adif[iu][j]*(1.0-apic[iu][j])
-          +adif[i][jl]*(1.0-apic[i][jl])+adif[i][jr]*(1.0-apic[i][jr])
-                      +adif[iu][jr]*(1.0-apic[iu][jr])+adif[id][jl]*(1.0-apic[id][jl]))/7.0;
-      }
-
-         }
-      }
-   }
-
-  for (i=1;i<nr;i++){
-      for (j=1;((j<=i)&&(i+j<=nr-1));j++){
-         if (apic[i][j]==0) adif[i][j]=b[i][j];
-      }
-   }
-
-
-   adif[nr-2][1]-=masscorrection;
-   createbdry();
-
-}
-
-
-
-
-
-void dynamicspop() {
-   double x;
-   int i,j;
-
-   for (i=1;i<nr;i++){
-       for (j=1;((j<=i)&&(i+j<=nr-1));j++){
-
-              x=drand48();
-              if (x<0.5) {adif[i][j]=adif[i][j]*(1+sigma);}
-              else adif[i][j]=adif[i][j]*(1-sigma);
-       }
-
+  for (i=1;i<nr;i++) {
+    for (j=1;((j<=i)&&(i+j<=nr-1));j++) {
+      b[i][j]=0.0;
     }
-    createbdry();
+  }
+
+  nrhalf=nr/2;
+  if (nr%2==0) {
+    masscorrection=(1.0/7.0)*(adif[nr-2][2]+adif[nr-3][3]-2.0*adif[nrhalf][nr-nrhalf]);
+  } else {
+    masscorrection=(1.0/7.0)*(adif[nr-2][2]+adif[nr-3][3]-adif[nrhalf][nr-nrhalf]-adif[nrhalf+1][nr-nrhalf-1]);
+  }
+
+  for (i=1;i<nr;i++) {
+    for (j=1;((j<=i)&&(i+j<=nr-1));j++) {
+      if (apic[i][j]==0) {
+        id=(i+1);iu=(i-1);
+        jr=(j+1); jl=(j-1);
+        count=0;
+        if (apic[id][j]==0) count++;
+        if (apic[iu][j]==0) count++;
+        if (apic[i][jl]==0) count++;
+        if (apic[i][jr]==0) count++;
+        if (apic[iu][jr]==0) count++;
+        if (apic[id][jl]==0) count++;
+
+        if (count==0) {
+          b[i][j]=adif[i][j];
+        } else {
+          b[i][j] = (1.0-(double)count/7.0) * adif[i][j] +
+                    (adif[id][j]*(1.0-apic[id][j])+adif[iu][j]*(1.0-apic[iu][j]) +
+                     adif[i][jl]*(1.0-apic[i][jl])+adif[i][jr]*(1.0-apic[i][jr]) +
+                     adif[iu][jr]*(1.0-apic[iu][jr])+adif[id][jl] * (1.0-apic[id][jl])) / 7.0;
+        }
+      }
+    }
+  }
+
+  for (i=1;i<nr;i++) {
+    for (j=1;((j<=i)&&(i+j<=nr-1));j++) {
+      if (apic[i][j]==0) adif[i][j]=b[i][j];
+    }
+  }
+
+  adif[nr-2][1]-=masscorrection;
+  createbdry();
 }
 
 
-void dynamicspop1()
+/**
+ * Dynamics
+ */
+void dynamicspop() {
+  double x;
+  int i,j;
 
-{
+  for (i=1;i<nr;i++) {
+    for (j=1;((j<=i)&&(i+j<=nr-1));j++) {
 
-   int i,j;
-   double offset;
-
-   if (sigma<0){
-      for (i=1;i<nr;i++)
-         for (j=1;((j<=i)&&(i+j<=nr-1));j++){
-            if(apic[i][j]==0){
-          offset=sigma*adif[i][j];
-          adif[i][j]+=offset;
+      x = drand48();
+      if (x<0.5) {
+        adif[i][j]=adif[i][j]*(1+sigma);
+      } else {
+        adif[i][j]=adif[i][j]*(1-sigma);
       }
-         }
-   }
+    }
+  }
+
+  createbdry();
 }
 
 
-void dynamicsunfre()
+/**
+ * Dynamics
+ */
+void dynamicsunfre() {
+  double y,afrij;
+  int i,j;
 
-{
+  int iup;
 
-   double y,afrij;
-   int i,j;
+  iup = centeri+rnew+1;
+  frchange = false;
 
-   int iup;
+  for (i=1;i<=iup;i++) {
+    for (j=1;((j<=i)&&(i+j<=nr-1));j++) {
+       if (apic[i][j]==0) {
 
-   iup=centeri+rnew+1;
-   frchange=false;
+        afrij=afr[i][j];
+        y=afrij*mu;
+        afr[i][j]=afr[i][j]-y;
+        adif[i][j]=adif[i][j]+y;
 
-   for (i=1;i<=iup;i++){
-      for (j=1;((j<=i)&&(i+j<=nr-1));j++){
-         if (apic[i][j]==0) {
-
-      afrij=afr[i][j];
-      y=afrij*mu;
-      afr[i][j]=afr[i][j]-y;
-      adif[i][j]=adif[i][j]+y;
-
-      afrij=alm[i][j];
-      if (afrij>0.0){
-         y=afrij*gam;
-         alm[i][j]=alm[i][j]-y;
-         adif[i][j]=adif[i][j]+y;
+        afrij=alm[i][j];
+        if (afrij>0.0){
+           y=afrij*gam;
+           alm[i][j]=alm[i][j]-y;
+           adif[i][j]=adif[i][j]+y;
+        }
       }
-   }
-      }
-   }
+    }
+  }
 
-   createbdry();
-
+  createbdry();
 }
 
 
-void dynamicsfre()
+/**
+ * Dynamics
+ */
+void dynamicsfre() {
+  int bpic[NRMAX][NCMAX];
+  int i,j,k;
+  int id,iu,jl,jr;
+  int count;
+  double difmass;
+  int iup;
 
-{
+  iup = centeri+rnew+1;
+  frchange = false;
 
-   int bpic[NRMAX][NCMAX];
-   int i,j,k;
-   int id,iu,jl,jr;
-   int count;
-   double difmass;
+  for (i=1;i<=iup;i++) {
+    for (j=1;((j<=i)&&(i+j<=nr-1));j++) {
+      bpic[i][j]=apic[i][j];
+    }
 
-   int iup;
+  for (i=1;i<=iup;i++) {
+    for (j=1;((j<=i)&&(i+j<=nr-1));j++) {
+      if (apic[i][j]==0) {
+        id=i+1;iu=i-1;
+        jr=j+1; jl=j-1;
+        count=0;
+        if (apic[id][j]==1) count++;
+        if (apic[iu][j]==1) count++;
+        if (apic[i][jl]==1) count++;
+        if (apic[i][jr]==1) count++;
+        if (apic[iu][jr]==1) count++;
+        if (apic[id][jl]==1) count++;
 
+        if (count>=1) {
+          difmass=adif[i][j]+adif[id][j]*(1-apic[id][j])+adif[iu][j]*(1-apic[iu][j])
+          +adif[i][jl]*(1-apic[i][jl])+adif[i][jr]*(1-apic[i][jr])
+          +adif[iu][jr]*(1-apic[iu][jr])+adif[id][jl]*(1-apic[id][jl]);
 
-
-   iup=centeri+rnew+1;
-   frchange=false;
-
-
-   for (i=1;i<=iup;i++)
-      for (j=1;((j<=i)&&(i+j<=nr-1));j++){
-
-          bpic[i][j]=apic[i][j];
-
-      }
-   for (i=1;i<=iup;i++){
-      for (j=1;((j<=i)&&(i+j<=nr-1));j++){
-
-         if (apic[i][j]==0){
-
-            id=i+1;iu=i-1;
-            jr=j+1; jl=j-1;
-            count=0;
-            if (apic[id][j]==1) count++;
-            if (apic[iu][j]==1) count++;
-            if (apic[i][jl]==1) count++;
-            if (apic[i][jr]==1) count++;
-            if (apic[iu][jr]==1) count++;
-            if (apic[id][jl]==1) count++;
-
-            if (count>=1){
-
-               difmass=adif[i][j]+adif[id][j]*(1-apic[id][j])+adif[iu][j]*(1-apic[iu][j])
-                           +adif[i][jl]*(1-apic[i][jl])+adif[i][jr]*(1-apic[i][jr])
-         +adif[iu][jr]*(1-apic[iu][jr])+adif[id][jl]*(1-apic[id][jl]);
-
-         if (count<=2) {
-
-                  if (afr[i][j]>=beta){ bpic[i][j]=1;}
-
-         }
-
-
-               if (count>=3){
-
-       if ( (afr[i][j]>=1.0) || ((difmass<=theta)&&(afr[i][j]>=alpha)) ) {
-                      bpic[i][j]=1;
-                   }
-
-               }
-         if (count>=4) bpic[i][j]=1;
+          if (count<=2) {
+            if (afr[i][j]>=beta) {
+              bpic[i][j]=1;
             }
-         }
-      }
-   }
-   for (i=1;i<=iup;i++){
-      for (j=1;((j<=i)&&(i+j<=nr-1));j++){
+          }
 
-         if (apic[i][j]!=bpic[i][j]){
-             apic[i][j]=bpic[i][j];
+          if (count>=3) {
+            if ((afr[i][j]>=1.0) || ((difmass<=theta)&&(afr[i][j]>=alpha)) ) {
+              bpic[i][j]=1;
+            }
+          }
 
-             alm[i][j]+=afr[i][j]; afr[i][j]=0.0;
-             k=norminf(i-centeri, j-centerj);
-             if (k>rnew) rnew=k; if (rnew>2*nr/3) stop=true;
-             ash[i][j]=parash;
-             frchange=true;
-         }
+          if (count>=4)  {
+            bpic[i][j]=1;
+          }
+        }
       }
-   }
-   parupdate=1-parupdate;
-   if (rnew-rold==1){ parash=parash+1; rold=rnew;}
-   createbdry();
+    }
+  }
+
+  for (i=1;i<=iup;i++) {
+    for (j=1;((j<=i)&&(i+j<=nr-1));j++) {
+      if (apic[i][j]!=bpic[i][j]) {
+        apic[i][j]=bpic[i][j];
+        alm[i][j]+=afr[i][j];
+        afr[i][j]=0.0;
+        k=norminf(i-centeri, j-centerj);
+        if (k>rnew) {
+          rnew=k;
+        }
+        if (rnew>2*nr/3) {
+          stop=true;
+        }
+        ash[i][j]=parash;
+        frchange=true;
+      }
+    }
+  }
+
+  parupdate = 1-parupdate;
+  if (rnew-rold==1) {
+    parash=parash+1;
+    rold=rnew;
+  }
+
+  createbdry();
 }
-
-
-
 
 void dynamicsfre1() {
   int i,j;
@@ -807,6 +792,9 @@ void init_graphics() {
   initialize();
   picturebig();
 }
+
+/*************************************************************************************************/
+
 
 
 /*** MAIN ****************************************************************************************/
