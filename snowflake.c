@@ -1,3 +1,5 @@
+/* gcc snowflake.c -lX11 -lm -o snowflake */
+
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
@@ -8,19 +10,17 @@
 #define T 1
 #define F 0
 
-
 #define nrmax 1002
 #define ncmax 1002
 
 #define kappamax 64
 
-
 int sp;
 
-double adif[nrmax][ncmax]; /*diffusion field*/
-int apic[nrmax][ncmax]; /*indicator of snowflake sites*/
-double afr[nrmax][ncmax]; /* boundary mass*/
-double alm[nrmax][ncmax]; /*crystal mass*/
+double adif[nrmax][ncmax]; /* diffusion field */
+int apic[nrmax][ncmax];    /* indicator of snowflake sites*/
+double afr[nrmax][ncmax];  /* boundary mass*/
+double alm[nrmax][ncmax];  /* crystal mass*/
 
 int ash[nrmax][ncmax]; /*rings pallette*/
 
