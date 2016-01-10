@@ -68,7 +68,6 @@ int ts;
 unsigned long tf, tb;
 char tbuf[8];
 int kc;
-int fin;
 
 char timestring[] = "time:";
 char activestring[] = "active area:";
@@ -927,51 +926,31 @@ void picturerings()
 
 
 }
-void drawbuttons()
-
-{
-     char quitstring[]="QUIT";
-     char pausestring[]="pause";
-     char playstring[]="play";
-     char savestring[]="save";
-     char readstring[]="read";
-
-     XSetForeground(td,tgc,tf);
-     XSetBackground(td,tgc,tb);
 
 
+void drawbuttons() {
+  char quitstring[]  ="QUIT";
+  char pausestring[] ="STOP";
+  char playstring[]  ="START";
 
-     XDrawRectangle(te.xexpose.display,te.xexpose.window,tgc,
-                    20, 50, nc*sp + 20, nr*sp+20);
+  XSetForeground(td, tgc, tf);
+  XSetBackground(td, tgc, tb);
 
-     XDrawRectangle(te.xexpose.display,te.xexpose.window,tgc,
-                    10, 10, 50, 20);
-     XDrawRectangle(te.xexpose.display,te.xexpose.window,tgc,
-                    65, 10, 50, 20);
-     XDrawRectangle(te.xexpose.display,te.xexpose.window,tgc,
-                    120, 10, 50, 20);
-     XDrawRectangle(te.xexpose.display,te.xexpose.window,tgc,
-                    175, 10, 50, 20);
-     XDrawRectangle(te.xexpose.display,te.xexpose.window,tgc,
-                    230, 10, 50, 20);
+  XDrawRectangle(te.xexpose.display, te.xexpose.window,tgc,
+                 20, 50, nc*sp + 20, nr*sp+20);
+  XDrawRectangle(te.xexpose.display, te.xexpose.window,tgc,
+                 10, 10, 50, 20);
+  XDrawRectangle(te.xexpose.display, te.xexpose.window,tgc,
+                 65, 10, 50, 20);
+  XDrawRectangle(te.xexpose.display, te.xexpose.window,tgc,
+                 120, 10, 50, 20);
 
-     XDrawImageString(te.xexpose.display,te.xexpose.window,tgc,
-                    20,25,quitstring,strlen(quitstring));
-
-     XDrawImageString(te.xexpose.display,te.xexpose.window,tgc,
-                    75,25,pausestring,strlen(pausestring));
-
-     XDrawImageString(te.xexpose.display,te.xexpose.window,tgc,
-                    130,25,playstring,strlen(playstring));
-
-     XDrawImageString(te.xexpose.display,te.xexpose.window,tgc,
-                    185,25,savestring,strlen(savestring));
-
-     XDrawImageString(te.xexpose.display,te.xexpose.window,tgc,
-                    240,25,readstring,strlen(readstring));
-
-
-
+  XDrawImageString(te.xexpose.display, te.xexpose.window, tgc,
+                   20,25, quitstring, strlen(quitstring));
+  XDrawImageString(te.xexpose.display,te.xexpose.window, tgc,
+                   75,25, pausestring,strlen(pausestring));
+  XDrawImageString(te.xexpose.display, te.xexpose.window, tgc,
+                   130,25, playstring,strlen(playstring));
 }
 
 
@@ -1061,7 +1040,6 @@ void savesnowflake() {
 
     fprintf(picf, "\n");
   }
-
 
   fclose(picf);
 }
@@ -1173,8 +1151,6 @@ int main(int argc, char *argv[]) {
 
   XMapRaised(td, tw);
 
-  fin = false;
-
   XNextEvent(td, &te);
   drawbuttons();
 
@@ -1183,7 +1159,8 @@ int main(int argc, char *argv[]) {
 
   pq = 0;
 
-  while (fin == false) {
+  bool keep_running = true;
+  while (keep_running) {
     XNextEvent(td, &te);
     switch (te.type) {
       case ButtonPress:
@@ -1191,7 +1168,8 @@ int main(int argc, char *argv[]) {
 
         /* QUIT */
         if ((posx>=10)&&(posx<=60) &&(posy>=10) && (posy<=30)) {
-          fin=true;
+          savesnowflake();
+          keep_running = false;
         }
 
         /* PAUSE */
@@ -1218,7 +1196,7 @@ int main(int argc, char *argv[]) {
 
         /* SAVE */
         else if ((posx>=175)&&(posx<=225) &&(posy>=10) && (posy<=30)) {
-          savesnowflake();
+          /* Do nothing */
         }
 
         /* READ */
