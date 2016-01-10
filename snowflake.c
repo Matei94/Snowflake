@@ -3,10 +3,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <time.h>
+#include <stdlib.h>
 #include <math.h>
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+
+#include "helpers.h"
 
 /*************************************************************************************************/
 
@@ -14,10 +18,26 @@
 
 /*** DEFINES *************************************************************************************/
 
-#define nrmax 1002
-#define ncmax 1002
+#define NRMAX 1002
+#define NCMAX 1002
 
-#define kappamax 64
+#define KAPPAMAX 64
+
+/* Parameters */
+#define RHO      0.58;
+#define RINIT    0;
+#define RHORINIT 1;
+#define BETA     2.0;
+#define ALPHA    0.0;
+#define THETA    0.002;
+#define KAPPA    0.05;
+#define MU       0.01;
+#define GAM      0.0000515;
+#define SIGMA    0.0;
+#define NR       250;
+#define SP       2;
+
+#define GRAPHICSFILE "snowflake.ppm"
 
 /*************************************************************************************************/
 
@@ -25,39 +45,34 @@
 
 /*** VARIABLES ***********************************************************************************/
 
+double adif [NRMAX][NCMAX]; /* diffusion field              */
+int    apic [NRMAX][NCMAX]; /* indicator of snowflake sites */
+double afr  [NRMAX][NCMAX]; /* boundary mass                */
+double alm  [NRMAX][NCMAX]; /* crystal mass                 */
+int    ash  [NRMAX][NCMAX]; /* rings pallette               */
+
+/* Parameters */
+double rho;
+int rinit;
+double rhorinit;
+double beta;
+double alpha;
+double theta;
+double kappa;
+double mu;
+double gam;
+double sigma;
+int nr, nc;
 int sp;
 
-double adif [nrmax][ncmax]; /* diffusion field              */
-int    apic [nrmax][ncmax]; /* indicator of snowflake sites */
-double afr  [nrmax][ncmax]; /* boundary mass                */
-double alm  [nrmax][ncmax]; /* crystal mass                 */
-int    ash  [nrmax][ncmax]; /* rings pallette               */
-
-/* parameters */
-double beta, kappa, mu, theta, alpha, gam, sigma;
-
-int nr, nc;
-
-int change, centeri, centerj;
-
+int centeri, centerj;
 int parupdate;
-
 int parash;
-
 int rold, rnew;
-
-int rinit;
-
-double rhorinit;
-
 int frchange;
-
-double rho;
-
 int stop;
 
 /* Graphics */
-
 Display *td;
 Window tw;
 GC tgc;
@@ -69,426 +84,171 @@ unsigned long tf, tb;
 char tbuf[8];
 int kc;
 
-char timestring[] = "time:";
-char activestring[] = "active area:";
-
-int noac,pq;
+int noac, pq;
 
 Colormap cmap;
-XColor clr[kappamax];
-
+XColor clr[KAPPAMAX];
 XColor clron[128];
 XColor clroff[128];
 XColor othp[20];
 
-int flags = { DoRed | DoGreen | DoBlue };
-
-char in[]="sn";
-char wn[]="digital snowflake";
-
-int red[125], green[125], blue[125];
-
-FILE *picf;
-
-FILE *prof;
-
-char graphicsfile[30];
+extern int red[125], green[125], blue[125];
 
 /*************************************************************************************************/
 
-void bluecolors33()
-{
-  int i;
-     red[0]= 71; green[0]=204; blue[0]=231;
-     red[1]= 70; green[1]=200; blue[1]=230;
-     red[2]= 69; green[2]=196; blue[2]=229;
-     red[3]= 68; green[3]=192; blue[3]=228;
-     red[4]= 67; green[4]=188; blue[4]=227;
-     red[5]= 66; green[5]=184; blue[5]=226;
-     red[6]= 65; green[6]=180; blue[6]=225;
-     red[7]= 64; green[7]=176; blue[7]=224;
-     red[8]= 63; green[8]=172; blue[8]=223;
-     red[9]= 62; green[9]=168; blue[9]=222;
-     red[10]= 61; green[10]=164; blue[10]=221;
-     red[11]= 60; green[11]=160; blue[11]=220;
-     red[12]= 59; green[12]=156; blue[12]=219;
-     red[13]= 58; green[13]=152; blue[13]=218;
-     red[14]= 57; green[14]=148; blue[14]=217;
-     red[15]= 56; green[15]=144; blue[15]=216;
-     red[16]= 55; green[16]=140; blue[16]=215;
-     red[17]= 54; green[17]=136; blue[17]=214;
-     red[18]= 53; green[18]=132; blue[18]=213;
-     red[19]= 52; green[19]=128; blue[19]=212;
-     red[20]= 51; green[20]=124; blue[20]=211;
-     red[21]= 50; green[21]=120; blue[21]=210;
-     red[22]= 49; green[22]=116; blue[22]=209;
-     red[23]= 48; green[23]=112; blue[23]=208;
-     red[24]= 47; green[24]=108; blue[24]=207;
-     red[25]= 46; green[25]=104; blue[25]=206;
-     red[26]= 45; green[26]=100; blue[26]=205;
-     red[27]= 44; green[27]=96; blue[27]=204;
-     red[28]= 43; green[28]=92; blue[28]=203;
-     red[29]= 42; green[29]=88; blue[29]=202;
-     red[30]= 41; green[30]=84; blue[30]=201;
-     red[31]= 40; green[31]=80; blue[31]=200;
-     red[32]= 10; green[32]=20; blue[32]=100;
-}
 
-void braquecolors64()
-{
-  int i;
+/**
+ * Create hexagonal boundary
+ */
+void createbdry() {
+  int i,j;
 
+  for (j=2; j<nc; j++) {
+    ash[j-1][j]=ash[j][j-1]; ash[j-2][j]=ash[j][j-2];
+    adif[j-1][j]=adif[j][j-1]; adif[j-2][j]=adif[j][j-2];
+    afr[j-1][j]=afr[j][j-1]; afr[j-2][j]=afr[j][j-2];
+    apic[j-1][j]=apic[j][j-1]; apic[j-2][j]=apic[j][j-2];
+    alm[j-1][j]=alm[j][j-1]; alm[j-2][j]=alm[j][j-2];
+  }
 
-     red[0]= 130; green[0]=166; blue[0]=167;
-     red[1]= 140; green[1]=176; blue[1]=186;
-     red[2]= 156; green[2]=193; blue[2]=200;
-     red[3]= 163; green[3]=204; blue[3]=212;
-     red[4]= 167; green[4]=213; blue[4]=212;
-     red[5]= 169; green[5]=207; blue[5]=215;
-     red[6]= 168; green[6]=207; blue[6]=211;
-     red[7]= 157; green[7]=199; blue[7]=205;
-     red[8]= 145; green[8]=162; blue[8]=155;
-     red[9]= 122; green[9]=137; blue[9]=151;
-     red[10]= 114; green[10]=128; blue[10]=136;
-     red[11]= 101; green[11]=130; blue[11]=142;
-     red[12]= 102; green[12]=130; blue[12]=157;
-     red[13]= 96; green[13]=129; blue[13]=162;
-     red[14]= 96; green[14]=130; blue[14]=165;
-     red[15]= 98; green[15]=131; blue[15]=166;
-     red[16]= 130; green[16]=166; blue[16]=167;
-     red[17]= 140; green[17]=176; blue[17]=186;
-     red[18]= 156; green[18]=193; blue[18]=200;
-     red[19]= 163; green[19]=204; blue[19]=212;
-     red[20]= 167; green[20]=213; blue[20]=212;
-     red[21]= 169; green[21]=207; blue[21]=215;
-     red[22]= 168; green[22]=207; blue[22]=211;
-     red[23]= 157; green[23]=199; blue[23]=205;
-     red[24]= 137; green[24]=175; blue[24]=189;
-     red[25]= 130; green[25]=166; blue[25]=174;
-     red[26]= 118; green[26]=152; blue[26]=164;
-     red[27]= 118; green[27]=153; blue[27]=157;
-     red[28]= 118; green[28]=158; blue[28]=160;
-     red[29]= 123; green[29]=164; blue[29]=166;
-     red[30]= 136; green[30]=177; blue[30]=177;
-     red[31]= 146; green[31]=191; blue[31]=197;
-     red[32]= 106; green[32]=140; blue[32]=143;
-     red[33]= 116; green[33]=162; blue[33]=160;
-     red[34]= 142; green[34]=183; blue[34]=185;
-     red[35]= 184; green[35]=201; blue[35]=205;
-     red[36]= 189; green[36]=224; blue[36]=229;
-     red[37]= 214; green[37]=248; blue[37]=247;
-     red[38]= 224; green[38]=232; blue[38]=240;
-     red[39]= 201; green[39]=228; blue[39]=234;
-     red[40]= 187; green[40]=218; blue[40]=222;
-     red[41]= 170; green[41]=194; blue[41]=203;
-     red[42]= 138; green[42]=175; blue[42]=176;
-     red[43]= 115; green[43]=153; blue[43]=162;
-     red[44]= 101; green[44]=137; blue[44]=151;
-     red[45]= 83; green[45]=126; blue[45]=132;
-     red[46]= 67; green[46]=106; blue[46]=111;
-     red[47]= 70; green[47]=87; blue[47]=93;
-     red[48]= 162; green[48]=197; blue[48]=198;
-     red[49]= 166; green[49]=201; blue[49]=203;
-     red[50]= 161; green[50]=200; blue[50]=203;
-     red[51]= 153; green[51]=189; blue[51]=200;
-     red[52]= 137; green[52]=175; blue[52]=185;
-     red[53]= 121; green[53]=163; blue[53]=167;
-     red[54]= 108; green[54]=147; blue[54]=151;
-     red[55]= 106; green[55]=141; blue[55]=153;
-     red[56]= 98; green[56]=131; blue[56]=161;
-     red[57]= 96; green[57]=131; blue[57]=161;
-     red[58]= 100; green[58]=136; blue[58]=155;
-     red[59]= 111; green[59]=132; blue[59]=145;
-     red[60]= 112; green[60]=134; blue[60]=144;
-     red[61]= 105; green[61]=134; blue[61]=138;
-     red[62]= 101; green[62]=134; blue[62]=138;
-     red[63]= 105; green[63]=130; blue[63]=141;
+  for (i=2; i<nr; i++) {
+    ash[i][0]=ash[i-1][2];
+    adif[i][0]=adif[i-1][2];
+    afr[i][0]=afr[i-1][2];
+    apic[i][0]=apic[i-1][2];
+    alm[i][0]=alm[i-1][2];
+  }
 
+  ash[0][2]=ash[2][0]; ash[0][1]=ash[2][0]; ash[1][0]=ash[2][0];
+  adif[0][2]=adif[2][0]; adif[0][1]=adif[2][0]; adif[1][0]=adif[2][0];
+  afr[0][2]=afr[2][0]; afr[0][1]=afr[2][0]; afr[1][0]=afr[2][0];
+  apic[0][2]=apic[2][0]; apic[0][1]=apic[2][0]; apic[1][0]=apic[2][0];
+  alm[0][2]=alm[2][0]; alm[0][1]=alm[2][0]; alm[1][0]=alm[2][0];
+
+  for (i=1; i<=nr-2; i++){
+    j=nr-i;
+    ash[i][j]=ash[i][j-1];
+    adif[i][j]=adif[i][j-1];
+    afr[i][j]=afr[i][j-1];
+    apic[i][j]=apic[i][j-1];
+    alm[i][j]=alm[i][j-1];
+  }
+
+  ash[nr-1][1]=ash[nr-2][1];
+  adif[nr-1][1]=adif[nr-2][1];
+  afr[nr-1][1]=afr[nr-2][1];
+  apic[nr-1][1]=apic[nr-2][1];
+  alm[nr-1][1]=alm[nr-2][1];
+
+  ash[nr-2][0]=ash[nr-3][2];
+  adif[nr-2][0]=adif[nr-3][2];
+  afr[nr-2][0]=afr[nr-3][2];
+  apic[nr-2][0]=apic[nr-3][2];
+  alm[nr-2][0]=alm[nr-3][2];
+
+  ash[nr-1][0]=ash[nr-3][2];
+  adif[nr-1][0]=adif[nr-3][2];
+  afr[nr-1][0]=afr[nr-3][2];
+  apic[nr-1][0]=apic[nr-3][2];
+  alm[nr-1][0]=alm[nr-3][2];
 }
 
 
+/**
+ * Big image
+ */
+void buildbig() {
+  int i, j;
 
-void offcolors()
-{
-  int i;
-
-
-  for (i=0; i<64; i++) {red[i]=129+2*i; green[i]=129+2*i; blue[i]=129+2*i;}
-}
-
-
-double myrand()
-
-{
-   double drand48();
-
-   return drand48();
-
-}
-
-int norminf(i,j)
-
-   int i,j;
-
-{
-   if (i<0) i=-i;
-   if (j<0) j=-j;
-   if (i>j)return i; else return j;
-}
-
-int seminorm(i,j)
-
-   int i,j;
-
-{
-   int k;
-
-   k=i+j;
-   if (k>=0) return k; else return -k;
-
-}
-
-
-int shape12(x,y)
-
-    double x, y;
-
-{
-    if (x<0) x=-x;
-    if (y<0) y=-y;
-    if ( (sqrt(2.0)*y<1.0) && (y+sqrt(3.0)*x<=sqrt(2.0)) &&
-         (sqrt(2.0)*x<1.0) && (x+sqrt(3.0)*y<=sqrt(2.0)) )
-       return 1; else return 0;
-
-}
-
-int shapecircle(x,y)
-
-    double x, y;
-
-{
-
-    if ( x*x+y*y<=1)
-       return 1; else return 0;
-
-}
-
-
-
-
-int chi(i)
-
-   int i;
-
-   {if (i==0) return 0; else return 1;}
-
-double sqr (x)
-
-double x;
-
-{
-return x*x;
-}
-
-void plotstate()
-
-{
-   int i,j;
-   for (i=0; i<=9; i++){
-       for(j=0; j<=9; j++)
-           printf("%.5lf|", adif[i][j]);
-
-       printf("\n");
-   }
-   printf("\n");
-
-}
-
-void check()
-
-{
-
-   int i,j,iup;
-
-   iup=centeri+rnew+1;
-   for (i=1;i<=iup;i++){
-      for (j=1;((j<=i)&&(i+j<=nr-1));j++){
-
-   if ( (apic[i][j]==1) && (adif[i][j]>0.0)) printf("*%d %lf", apic[i][j], adif[i][j]);
-
+  for (i=0; i<nr; i++) {
+    for (j=0; j<nc; j++) {
+      if ((i>=1)&&(j>i)&&(i+j<=nr)) {
+        ash[i][j]  = ash[j][i];
+        adif[i][j] = adif[j][i];
+        apic[i][j] = apic[j][i];
+        afr[i][j]  = afr[j][i];
+        alm[i][j]  = alm[j][i];
       }
-   }
-
+    }
+  }
 }
 
+/**
+ * Check mass
+ */
+void checkmass() {
+  int i, j;
+  double totalmass;
+  totalmass = 0.0;
 
+  buildbig();
 
-/*The procedure below implements hexagonal boundary conditions. A mass
-correction step is necessary in the diffusion step to preserve mass.*/
+  for (i=2; i<=nr-2; i++) {
+    for (j=1; i+j <= nr-1; j++) {
+      totalmass += adif[i][j]+afr[i][j]+alm[i][j];
+    }
+  }
 
-void createbdry()
-
-{
-   int i,j;
-
-   for (j=2; j<nc; j++) {
-       ash[j-1][j]=ash[j][j-1]; ash[j-2][j]=ash[j][j-2];
-       adif[j-1][j]=adif[j][j-1]; adif[j-2][j]=adif[j][j-2];
-       afr[j-1][j]=afr[j][j-1]; afr[j-2][j]=afr[j][j-2];
-       apic[j-1][j]=apic[j][j-1]; apic[j-2][j]=apic[j][j-2];
-       alm[j-1][j]=alm[j][j-1]; alm[j-2][j]=alm[j][j-2];
-   }
-   for (i=2; i<nr; i++) {
-       ash[i][0]=ash[i-1][2];
-       adif[i][0]=adif[i-1][2];
-       afr[i][0]=afr[i-1][2];
-       apic[i][0]=apic[i-1][2];
-       alm[i][0]=alm[i-1][2];
-
-   }
-   ash[0][2]=ash[2][0]; ash[0][1]=ash[2][0]; ash[1][0]=ash[2][0];
-   adif[0][2]=adif[2][0]; adif[0][1]=adif[2][0]; adif[1][0]=adif[2][0];
-   afr[0][2]=afr[2][0]; afr[0][1]=afr[2][0]; afr[1][0]=afr[2][0];
-   apic[0][2]=apic[2][0]; apic[0][1]=apic[2][0]; apic[1][0]=apic[2][0];
-   alm[0][2]=alm[2][0]; alm[0][1]=alm[2][0]; alm[1][0]=alm[2][0];
-   for (i=1; i<=nr-2; i++){
-      j=nr-i;
-      ash[i][j]=ash[i][j-1];
-      adif[i][j]=adif[i][j-1];
-      afr[i][j]=afr[i][j-1];
-      apic[i][j]=apic[i][j-1];
-      alm[i][j]=alm[i][j-1];
-   }
-
-   ash[nr-1][1]=ash[nr-2][1];
-   adif[nr-1][1]=adif[nr-2][1];
-   afr[nr-1][1]=afr[nr-2][1];
-   apic[nr-1][1]=apic[nr-2][1];
-   alm[nr-1][1]=alm[nr-2][1];
-
-   ash[nr-2][0]=ash[nr-3][2];
-   adif[nr-2][0]=adif[nr-3][2];
-   afr[nr-2][0]=afr[nr-3][2];
-   apic[nr-2][0]=apic[nr-3][2];
-   alm[nr-2][0]=alm[nr-3][2];
-
-   ash[nr-1][0]=ash[nr-3][2];
-   adif[nr-1][0]=adif[nr-3][2];
-   afr[nr-1][0]=afr[nr-3][2];
-   apic[nr-1][0]=apic[nr-3][2];
-   alm[nr-1][0]=alm[nr-3][2];
+  totalmass+=adif[1][1]+afr[1][1]+alm[i][j];
 }
 
-void buildbig()
+/**
+ * Algorithm initialization
+ */
+void initialize() {
+  int i, j, k;
+  double x;
 
-{
-   int i,j,i1,j1;
-   int centeribig, centerjbig;
+  pq=0;
+  stop = false;
+  parupdate = 0;
 
-   centeribig=1; centerjbig=1;
+  centeri = 1;
+  centerj = 1;
 
-   for (i=0; i<nr; i++)
-      for (j=0; j<nc; j++){
+  rold = 0;
+  rnew = 0;
 
-         if ((i>=1)&&(j>i)&&(i+j<=nr)) {
-            ash[i][j]=ash[j][i];
-            adif[i][j]=adif[j][i];
-            apic[i][j]=apic[j][i];
-            afr[i][j]=afr[j][i];
-      alm[i][j]=alm[j][i];
-         }
+  for (i=1; i<nr; i++) {
+    for (j=1; ((j<=i)&&(i+j<=nr-1)); j++) {
+      x = drand48();
+      if ((norminf(i-centeri,j-centerj) <= rinit)   &&
+          (seminorm(i-centeri, j-centerj) <= rinit) &&
+          (x <= rhorinit)) {
+        adif[i][j] = 0.0;
+        apic[i][j] = 1;
+        afr[i][j]  = 0;
+        ash[i][j]  = 0;
+        alm[i][j]  = 1.0;
+        k = norminf(i-centeri, j-centerj);
+        if (k>rnew) {
+          rnew=k;
+        }
+      } else {
+        adif[i][j] = rho;
+        apic[i][j] = 0;
+        afr[i][j]  = 0.0;
+        ash[i][j]  = 0;
+        alm[i][j]  = 0.0;
       }
+    }
+  }
 
+  rold=rnew;
+  parash=1;
+  createbdry();
+  buildbig();
 }
-
-void checkmass()
-
-{
-
-   int i,j,i1,j1,iup,no;
-   double totalmass;
-   totalmass=0.0;
-
-   buildbig();
-
-   for (i=2;i<=nr-2;i++){
-      for (j=1; i+j<= nr-1; j++){
-         totalmass+=adif[i][j]+afr[i][j]+alm[i][j];
-
-      }
-   }
-   totalmass+=adif[1][1]+afr[1][1]+alm[i][j];
-   printf("total mass=%.10lf\n", totalmass);
-
-}
-
-
-void initialize()
-
-{
-   int t1,t2;
-   int i,j,k;
-   double x;
-   double drand48();
-   double x1, y1;
-
-
-   pq=0;
-
-   stop=false;parupdate=0;
-
-   srand48();
-   t1=time(&t2);
-   srand48();
-   t1=t1%1000;
-   printf("seed:%d\n",t1);
-
-   for (i=1;i<t1;i++){ x=drand48();}
-
-   centeri=1;centerj=1;
-
-   rold=0; rnew=0;
-
-   for (i=1;i<nr;i++){
-      for (j=1;((j<=i)&&(i+j<=nr-1));j++){
-         x=myrand();
-
-
-            if ((norminf(i-centeri,j-centerj)<=rinit)&&
-                (seminorm(i-centeri, j-centerj)<=rinit)&&
-                (x<=rhorinit)){
-                 adif[i][j]=0.0; apic[i][j]=1; afr[i][j]=0; ash[i][j]=0; alm[i][j]=1.0;
-                 k=norminf(i-centeri, j-centerj);
-                 if (k>rnew) rnew=k;
-            }
-      else{
-                adif[i][j]=rho; apic[i][j]=0; afr[i][j]=0.0;ash[i][j]=0; alm[i][j]=0.0;
-            }
-
-      }
-   }
-   rold=rnew;
-   parash=1;
-   createbdry();
-   buildbig();
-
-}
-
-
 
 
 void dynamicsdif()
 
 {
 
-   double b[nrmax][ncmax];
-   double x,y;
-   int i,j,k;
+   double b[NRMAX][NCMAX];
+   int i,j;
    int id,iu,jl,jr;
-   int jend;
-   int part;
    int count;
-   double b1, b2;
    double masscorrection;
    int nrhalf;
 
@@ -545,24 +305,14 @@ void dynamicsdif()
 
 
 
-void dynamicspop()
-
-{
-
-   double b[nrmax][ncmax];
-   double x,y;
-   int i,j,k;
-   int id,iu,jl,jr;
-   int part;
-   int count;
-   double offset;
-
-
+void dynamicspop() {
+   double x;
+   int i,j;
 
    for (i=1;i<nr;i++){
        for (j=1;((j<=i)&&(i+j<=nr-1));j++){
 
-              x=myrand();
+              x=drand48();
               if (x<0.5) {adif[i][j]=adif[i][j]*(1+sigma);}
               else adif[i][j]=adif[i][j]*(1-sigma);
        }
@@ -595,17 +345,10 @@ void dynamicsunfre()
 
 {
 
-   double x,y,afrij;
-   int i,j,k;
-   int id,iu,jl,jr;
-   int part;
-   int count;
-   double offset;
-   double difmass;
+   double y,afrij;
+   int i,j;
 
-   int ilo,iup,jlo,jup;
-
-
+   int iup;
 
    iup=centeri+rnew+1;
    frchange=false;
@@ -638,18 +381,13 @@ void dynamicsfre()
 
 {
 
-   int bpic[nrmax][ncmax];
-
-   double x,y,afrij;
+   int bpic[NRMAX][NCMAX];
    int i,j,k;
    int id,iu,jl,jr;
-   int part;
    int count;
-   double offset;
-   double nfrsum;
-   double frmass, difmass;
+   double difmass;
 
-   int ilo,iup,jlo,jup;
+   int iup;
 
 
 
@@ -725,30 +463,19 @@ void dynamicsfre()
 
 
 
-void dynamicsfre1()
+void dynamicsfre1() {
+  int i,j;
+  int id,iu,jl,jr;
+  int count;
+  double offset;
 
-{
+  int iup;
 
-   double x,y;
-   int i,j,k;
-   int id,iu,jl,jr;
-   int part;
-   int count;
-   double offset;
-   double frmass;
-   double blockmass;
+  iup = centeri+rnew+1;
+  frchange = false;
 
-   int ilo,iup,jlo,jup;
-   double epsilon;
-
-
-
-   iup=centeri+rnew+1;
-   frchange=false;
-
-
-   for (i=1;i<=iup;i++){
-      for (j=1;((j<=i)&&(i+j<=nr-1));j++){
+  for (i=1; i<=iup; i++) {
+    for (j=1; ((j<=i)&&(i+j<=nr-1)); j++) {
 
          if (apic[i][j]==0){
 
@@ -774,160 +501,86 @@ void dynamicsfre1()
 }
 
 
-void dynamics()
-
-{
-  int i;
-
-
+/**
+ * All dynamics
+ */
+void dynamics() {
   dynamicsdif();
   dynamicsfre1();
   dynamicsfre();
   dynamicsunfre();
 
-  if (sigma>0.0) dynamicspop();
-
-  /*plotstate(); */
-
-
+  if (sigma > 0.0) {
+    dynamicspop();
+  }
 }
 
 
-void picturebig()
+/**
+ * Draw whole
+ */
+void picturebig() {
+  int i, j, k;
+  double y;
 
-{
-   int i,j,k,pqn,kf;
+  buildbig();
+  for (i=1; i < nr; i++) {
+    for (j=1; j < nc; j++) {
+      if (apic[i][j] == 0) {
+        k = floor(63.0 * (adif[i][j]/(rho)));
+        XSetForeground(td, tgc, clroff[k].pixel);
+        XFillRectangle(te.xexpose.display, te.xexpose.window, tgc, j*sp+30, i*sp+60, sp, sp);
+      } else {
+        y = alm[i][j] + adif[i][j];
+        k = floor((33.0*y-alpha)/(beta-alpha));
+        if (k>32) {
+          k=32;
+        }
 
-   double y;
-
-   char pqc[10];
-
-   buildbig();
-   for (i=1;i<nr;i++){
-         for (j=1; j< nc; j++){
-
-            if (apic[i][j]==0){
-
-    k=floor(63.0*(adif[i][j]/(rho)));
-    XSetForeground(td,tgc,clroff[k].pixel);
-                XFillRectangle(te.xexpose.display,te.xexpose.window,
-                                  tgc,j*sp+30,i*sp+60,sp,sp);
-
-            }
-            else {
-
-
-         y=alm[i][j]+adif[i][j];
-
-         k=floor((33.0*y-alpha)/(beta-alpha)); if (k>32) k=32;
-
-         XSetForeground(td,tgc,clron[k].pixel);
-         XFillRectangle(te.xexpose.display,te.xexpose.window,
-                                  tgc,j*sp+30,i*sp+60,sp,sp);
-
-
-            }
-
-
-         }
-
-   }
-
-
-   if (pq==0) {pqc[0]='0'; pqc[1]='\0';}
-   else{
-      pqn=pq;
-      for (k=9;k>=0;k--){
-
-         pqc[k]=pqn%10+'0';
-         pqn=pqn/10;
+        XSetForeground(td,tgc,clron[k].pixel);
+        XFillRectangle(te.xexpose.display, te.xexpose.window, tgc, j*sp+30, i*sp+60, sp, sp);
       }
-      for (kf=0;pqc[kf]=='0';kf++);
-
-      for (k=0;k<=9-kf; k++) pqc[k]=pqc[k+kf];
-      pqc[10-kf]='\0';
-   }
-
-
-   XSetForeground(td,tgc,tf);
-   XSetBackground(td,tgc,tb);
-
-   XDrawImageString(te.xexpose.display,te.xexpose.window,
-                    tgc,10,45,timestring,strlen(timestring));
-   XDrawImageString(te.xexpose.display,te.xexpose.window,
-                    tgc,40,45,pqc,strlen(pqc));
-
-
-
+    }
+  }
 }
 
 
+/**
+ * Draw in rings
+ */
+void picturerings() {
+  int i, j, k;
 
-void picturerings()
+  buildbig();
+  for (i = 1; i < nr; i++) {
+    for (j = 1; j < nc; j++) {
+      if (apic[i][j] == 0) {
+        k = floor(63.0 * (adif[i][j]/(rho)));
+        XSetForeground(td, tgc, clroff[k].pixel);
+        XFillRectangle(te.xexpose.display, te.xexpose.window, tgc,j*sp+30,i*sp+60,sp,sp);
+      } else {
+        k = ash[i][j];
+        k = k % KAPPAMAX;
+        XSetForeground(td, tgc, clr[k].pixel);
+        XFillRectangle(te.xexpose.display, te.xexpose.window, tgc, j*sp+30, i*sp+60, sp, sp);
+        if (alm[i][j]>1+0.5*(beta-1.0)) {
+          if (alm[i][j] >= 1+0.2 * (beta-1.0)) k=12;
+          if (alm[i][j] >= 1+0.5 * (beta-1.0)) k=13;
+          if (alm[i][j] >= 1+0.7 * (beta-1.0)) k=14;
+          if (alm[i][j] >= beta)               k=15;
 
-{
-   int i,j,k,pqn,kf;
-
-   char pqc[10];
-
-   buildbig();
-   for (i=1;i<nr;i++){
-         for (j=1; j< nc; j++){
-
-            if (apic[i][j]==0){
-
-    k=floor(63.0*(adif[i][j]/(rho)));
-    XSetForeground(td,tgc,clroff[k].pixel);
-                XFillRectangle(te.xexpose.display,te.xexpose.window,
-                                  tgc,j*sp+30,i*sp+60,sp,sp);
-            }
-            else {
-               k=ash[i][j];
-               k=k%kappamax;
-               XSetForeground(td,tgc,clr[k].pixel);
-               XFillRectangle(te.xexpose.display,te.xexpose.window,
-                                 tgc,j*sp+30,i*sp+60,sp,sp);
-               if (alm[i][j]>1+0.5*(beta-1.0)){
-                  if (alm[i][j]>=1+0.2*(beta-1.0)) k=12;
-                  if (alm[i][j]>=1+0.5*(beta-1.0)) k=13;
-                  if (alm[i][j]>=1+0.7*(beta-1.0)) k=14;
-                  if (alm[i][j]>=beta) k=15;
-
-                  XSetForeground(td,tgc,othp[k].pixel);
-                  XFillRectangle(te.xexpose.display,te.xexpose.window,
-                                  tgc,j*sp+30,i*sp+60,sp,sp);
-               }
-            }
-         }
-   }
-
-   if (pq==0) {pqc[0]='0'; pqc[1]='\0';}
-   else{
-      pqn=pq;
-      for (k=9;k>=0;k--){
-
-         pqc[k]=pqn%10+'0';
-         pqn=pqn/10;
+          XSetForeground(td,tgc,othp[k].pixel);
+          XFillRectangle(te.xexpose.display, te.xexpose.window, tgc, j*sp+30, i*sp+60, sp, sp);
+        }
       }
-      for (kf=0;pqc[kf]=='0';kf++);
-
-      for (k=0;k<=9-kf; k++) pqc[k]=pqc[k+kf];
-      pqc[10-kf]='\0';
-   }
-
-
-   XSetForeground(td,tgc,tf);
-   XSetBackground(td,tgc,tb);
-
-   XDrawImageString(te.xexpose.display,te.xexpose.window,
-                    tgc,10, 45,timestring,strlen(timestring));
-   XDrawImageString(te.xexpose.display,te.xexpose.window,
-                    tgc,40, 45,pqc,strlen(pqc));
-
-
+    }
+  }
 }
 
 
+/**
+ * Draw buttons
+ */
 void drawbuttons() {
   char quitstring[]  ="QUIT";
   char pausestring[] ="STOP";
@@ -954,36 +607,40 @@ void drawbuttons() {
 }
 
 
+/**
+ * Sections orientation
+ */
 void transform(int i, int j, int *i1, int *j1) {
-    int x1, y1, z1, n1;
-    n1 = nc-2;
-    x1 = j-n1;
-    y1 = n1-i;
-    while ((x1<0)||(y1>0)) {
-      if ((y1>0)&&(y1<=x1)) {
-        x1 = x1 - y1;
-        y1 = -y1;
-      } else if ((x1>0)&&(x1<=y1)) {
-        z1 = x1;
-        x1 = y1;
-        y1 = z1;
-      } else {
-        x1 = -x1;
-        y1 = -y1;
-      }
+  int x1, y1, z1, n1;
+  n1 = nc-2;
+  x1 = j-n1;
+  y1 = n1-i;
+  while ((x1<0)||(y1>0)) {
+    if ((y1>0)&&(y1<=x1)) {
+      x1 = x1 - y1;
+      y1 = -y1;
+    } else if ((x1>0)&&(x1<=y1)) {
+      z1 = x1;
+      x1 = y1;
+      y1 = z1;
+    } else {
+      x1 = -x1;
+      y1 = -y1;
     }
-    *i1 = -y1 + 1;
-    *j1 = x1 + 1;
   }
+  *i1 = -y1 + 1;
+  *j1 = x1 + 1;
+}
 
 
+/**
+ * Save to graphicsfile
+ */
 void savesnowflake() {
-  int i, j, i1, j1, k, pqn, kf;
-  char pqc[10];
-  double totalmass;
+  int i, j, i1, j1, k;
   double y;
 
-  picf = fopen(graphicsfile, "w");
+  FILE *picf = fopen(GRAPHICSFILE, "w");
   fprintf(picf, "P3\n");
   fprintf(picf, "%d %d\n", 2*(nc-2)+1, 2*(nr-2)+1);
   fprintf(picf, "255\n");
@@ -1028,7 +685,7 @@ void savesnowflake() {
                     othp[k].blue  * 255 / 65535);
           } else {
             k = ash[i1][j1];
-            k = k % kappamax;
+            k = k % KAPPAMAX;
             fprintf(picf,"%d %d %d ",
                     clr[k].red   * 255 / 65535,
                     clr[k].green * 255 / 65535,
@@ -1045,35 +702,31 @@ void savesnowflake() {
 }
 
 
-/*** MAIN ****************************************************************************************/
+/**
+ * Parameter initialization
+ */
+void set_parameters() {
+  rho      = RHO;
+  rinit    = RINIT;
+  rhorinit = RHORINIT;
+  beta     = BETA;
+  alpha    = ALPHA;
+  theta    = THETA;
+  kappa    = KAPPA;
+  mu       = MU;
+  gam      = GAM;
+  sigma    = SIGMA;
+  nr       = NR;
+  nc       = nr;
+  sp       = SP;
+}
 
-int main(int argc, char *argv[]) {
-  int i, j, k, nop;
-  char ch;
-  int posx, posy;
 
-
-  Window rw, cw;
-  int rootx, rooty;
-  unsigned int kgb;
-
-  /* parameters */
-  rho = 0.58;
-  rinit = 0;
-
-  rhorinit = 1;
-  beta = 2.0;
-  alpha = 0.0;
-  theta = 0.002;
-  kappa = 0.05;
-  mu = 0.01;
-  gam = 0.0000515;
-  sigma = 0.0;
-  nr = 250;
-  nc = nr;
-  sp = 2;
-
-  sscanf("snowflake.ppm", "%s", graphicsfile);
+/**
+ * Graphics initialization
+ */
+void init_graphics() {
+  int i;
 
   td = XOpenDisplay("");
   ts = DefaultScreen(td);
@@ -1089,16 +742,13 @@ int main(int argc, char *argv[]) {
   th.flags = PPosition | PSize;
 
   tw = XCreateSimpleWindow(td, DefaultRootWindow(td),th.x,th.y, th.width, th.height,7, tf,tb);
-
   XSetWindowBorderWidth(td, tw, 100);
-
-  XSetStandardProperties(td, tw, wn, in, None, argv, argc, &th);
-
+  XSetStandardProperties(td, tw, "digital snowflake", "sn", None, NULL, 0, &th);
   cmap = DefaultColormap(td, ts);
 
   braquecolors64();
 
-  for (i = 0; i < kappamax; i++) {
+  for (i = 0; i < KAPPAMAX; i++) {
     clr[i].red   = red[i]   * 65535 / 255;
     clr[i].green = green[i] * 65535 / 255;
     clr[i].blue  = blue[i]  * 65535 / 255;
@@ -1156,6 +806,19 @@ int main(int argc, char *argv[]) {
 
   initialize();
   picturebig();
+}
+
+
+/*** MAIN ****************************************************************************************/
+
+int main(int argc, char *argv[]) {
+  set_parameters();
+  init_graphics();
+
+  Window rw, cw;
+  int posx, posy;
+  int rootx, rooty;
+  unsigned int kgb;
 
   pq = 0;
 
@@ -1167,13 +830,13 @@ int main(int argc, char *argv[]) {
         XQueryPointer(td, tw, &rw, &cw, &rootx, &rooty, &posx, &posy, &kgb);
 
         /* QUIT */
-        if ((posx>=10)&&(posx<=60) &&(posy>=10) && (posy<=30)) {
+        if ((posx >= 10) && (posx <= 60) && (posy >= 10) && (posy <= 30)) {
           savesnowflake();
           keep_running = false;
         }
 
-        /* PAUSE */
-        else if ((posx>=65)&&(posx<=115) &&(posy>=10) && (posy<=30)) {
+        /* STOP */
+        else if ((posx >= 65) && (posx <= 115) && (posy >= 10) && (posy <= 30)) {
           if (pq % 2 == 0) {
             picturerings();
           } else {
@@ -1181,36 +844,16 @@ int main(int argc, char *argv[]) {
           }
         }
 
-        /* PLAY */
-        else if ((posx>=120)&&(posx<=170) &&(posy>=10) && (posy<=30)) {
-          while((XEventsQueued(td,QueuedAfterReading)==0)&&(pq!=-1) &&(stop==false)) {
+        /* START */
+        else if ((posx>=120) && (posx<=170) && (posy>=10) && (posy<=30)) {
+          while((XEventsQueued(td, QueuedAfterReading) == 0) && (pq!=-1) && (stop == false)) {
             noac=0;
             pq++;
             dynamics();
             if (pq % 10 == 0) {
               picturebig();
             }
-
           }
-        }
-
-        /* SAVE */
-        else if ((posx>=175)&&(posx<=225) &&(posy>=10) && (posy<=30)) {
-          /* Do nothing */
-        }
-
-        /* READ */
-        else if ((posx>=230)&&(posx<=280) &&(posy>=10) && (posy<=30)) {
-          /* NO READ */
-        }
-
-        /* STEP */
-        else {
-          noac=0;
-          pq++;
-          dynamics();
-          picturebig();
-          checkmass();
         }
 
         break;
@@ -1225,8 +868,9 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  XFreeGC(td,tgc);
-  XDestroyWindow(td,tw);
+  /* Clean graphics */
+  XFreeGC(td, tgc);
+  XDestroyWindow(td, tw);
   XCloseDisplay(td);
 
   return 0;
