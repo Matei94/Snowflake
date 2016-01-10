@@ -10,27 +10,35 @@
 
 /*************************************************************************************************/
 
+
+
+/*** DEFINES *************************************************************************************/
+
 #define nrmax 1002
 #define ncmax 1002
 
 #define kappamax 64
 
+/*************************************************************************************************/
+
+
+
+/*** VARIABLES ***********************************************************************************/
+
 int sp;
 
-double adif[nrmax][ncmax]; /* diffusion field */
-int apic[nrmax][ncmax];    /* indicator of snowflake sites*/
-double afr[nrmax][ncmax];  /* boundary mass*/
-double alm[nrmax][ncmax];  /* crystal mass*/
+double adif [nrmax][ncmax]; /* diffusion field              */
+int    apic [nrmax][ncmax]; /* indicator of snowflake sites */
+double afr  [nrmax][ncmax]; /* boundary mass                */
+double alm  [nrmax][ncmax]; /* crystal mass                 */
+int    ash  [nrmax][ncmax]; /* rings pallette               */
 
-int ash[nrmax][ncmax]; /*rings pallette*/
-
-/* parameters*/
-
+/* parameters */
 double beta, kappa, mu, theta, alpha, gam, sigma;
 
-int nr,nc;
+int nr, nc;
 
-int change, centeri,centerj;
+int change, centeri, centerj;
 
 int parupdate;
 
@@ -39,17 +47,19 @@ int parash;
 int rold, rnew;
 
 int rinit;
+
 double rhorinit;
 
 int frchange;
 int twelvesided;
-
 
 double rho;
 
 int stop;
 
 char po[30];
+
+/* Graphics */
 
 Display *td;
 Window tw;
@@ -58,30 +68,29 @@ XEvent te;
 KeySym tk;
 XSizeHints th;
 int ts;
-unsigned long tf,tb;
+unsigned long tf, tb;
 char tbuf[8];
 int kc;
 int fin;
 
-char timestring[]="time:";
-char activestring[]="active area:";
+char timestring[] = "time:";
+char activestring[] = "active area:";
 
 int noac,pq;
 
 Colormap cmap;
 XColor clr[kappamax];
 
-
 XColor clron[128];
 XColor clroff[128];
 XColor othp[20];
 
-int flags={DoRed|DoGreen|DoBlue};
+int flags = { DoRed | DoGreen | DoBlue };
 
 char in[]="sn";
 char wn[]="digital snowflake";
 
-int red[125], green[125],blue[125];
+int red[125], green[125], blue[125];
 
 FILE *picf;
 
@@ -95,7 +104,7 @@ char graphicsfile[30];
 
 char comments[100];
 
-
+/*************************************************************************************************/
 
 void bluecolors33()
 {
@@ -1178,293 +1187,204 @@ void savesnowflake()
     dum = popen (po, "r");
 }
 
-main(argc,argv)
 
-int argc;
-char *argv[];
+/*** MAIN ****************************************************************************************/
+
+int main(int argc, char *argv[]) {
+  int i, j, k, nop;
+  char ch;
+  int posx, posy;
+
+
+  Window rw, cw;
+  int rootx, rooty;
+  unsigned int kgb;
+
+  /* parameters */
+  rho = 0.58;
+  rinit = 0;
+
+  twelvesided = 0; if (rinit < 0) {
+    rinit = -rinit; twelvesided = 1;
+  }
 
-{
+  rhorinit = 1;
+  beta = 2.0;
+  alpha = 0.0;
+  theta = 0.002;
+  kappa = 0.05;
+  mu = 0.01;
+  gam = 0.0000515;
+  sigma = 0.0;
+  nr = 250;
+  nc = nr;
+  sp = 2;
 
+  sscanf("pltest", "%s", infile);
+  sscanf("pltest", "%s", outfile);
+  sscanf("snowflake.ppm", "%s", graphicsfile);
+  sscanf("gimp", "%s", po);
+  sscanf("Test file", "%s", comments);
 
+  td = XOpenDisplay("");
+  ts = DefaultScreen(td);
+  tb = XWhitePixel(td, ts);
+  tf = XBlackPixel(td, ts);
 
-   int i,j,k,nop;
-   char ch;
-   int posx,posy;
+  th.x = 0;
+  th.y = 0;
 
+  th.width = nc * sp + 100;
+  th.height = nr * sp + 100;
 
-   Window rw,cw;
-   int rootx,rooty;
-   unsigned int kgb;
+  th.flags = PPosition | PSize;
 
+  tw = XCreateSimpleWindow(td, DefaultRootWindow(td),th.x,th.y, th.width, th.height,7, tf,tb);
 
+  XSetWindowBorderWidth(td, tw, 100);
 
+  XSetStandardProperties(td, tw, wn, in, None, argv, argc, &th);
 
+  cmap = DefaultColormap(td, ts);
 
-/* enter data */
+  braquecolors64();
 
-printf("enter rho:");
-// skip();scanf("%lf",&rho);
-rho = 0.58;
+  for (i = 0; i < kappamax; i++) {
+    clr[i].red   = red[i]   * 65535 / 255;
+    clr[i].green = green[i] * 65535 / 255;
+    clr[i].blue  = blue[i]  * 65535 / 255;
+    XAllocColor(td, cmap, &clr[i]);
+  }
 
-printf("enter rinit:");
-// skip(); scanf("%d", &rinit);
-rinit = 0;
+  bluecolors33();
 
-twelvesided=0; if (rinit<0){rinit=-rinit; twelvesided=1;}
+  for (i = 0; i <= 32; i++) {
+    clron[i].red   = red[i]   * 65535 / 255;
+    clron[i].green = green[i] * 65535 / 255;
+    clron[i].blue  = blue[i]  * 65535 / 255;
+    XAllocColor(td, cmap, &clron[i]);
+  }
 
-printf("enter rhorinit:");
-// skip(); scanf("%lf", &rhorinit);
-rhorinit = 1;
+  offcolors();
 
-printf("enter beta:");
-// skip();scanf("%lf",&beta);
-beta = 2.0;
+  for (i = 0; i <= 63; i++) {
+    clroff[63-i].red   = red[i]   * 65535 / 255;
+    clroff[63-i].green = green[i] * 65535 / 255;
+    clroff[63-i].blue  = blue[i]  * 65535 / 255;
+    XAllocColor(td, cmap, &clroff[63-i]);
+  }
 
-printf("enter alpha:");
-// skip();scanf("%lf",&alpha);
-alpha = 0.0;
+  XAllocNamedColor(td, cmap, "orange",         &othp[0],  &othp[0]);
+  XAllocNamedColor(td, cmap, "gray90",         &othp[1],  &othp[1]);
+  XAllocNamedColor(td, cmap, "gray80",         &othp[2],  &othp[2]);
+  XAllocNamedColor(td, cmap, "gray70",         &othp[3],  &othp[3]);
+  XAllocNamedColor(td, cmap, "gray60",         &othp[4],  &othp[4]);
+  XAllocNamedColor(td, cmap, "gray50",         &othp[5],  &othp[5]);
+  XAllocNamedColor(td, cmap, "gray40",         &othp[6],  &othp[6]);
+  XAllocNamedColor(td, cmap, "gray30",         &othp[7],  &othp[7]);
+  XAllocNamedColor(td, cmap, "gray25",         &othp[8],  &othp[8]);
+  XAllocNamedColor(td, cmap, "gray20",         &othp[9],  &othp[9]);
+  XAllocNamedColor(td, cmap, "black",          &othp[10], &othp[10]);
+  XAllocNamedColor(td, cmap, "azure",          &othp[11], &othp[11]);
+  XAllocNamedColor(td, cmap, "lightblue2",     &othp[12], &othp[12]);
+  XAllocNamedColor(td, cmap, "lightblue3",     &othp[13], &othp[13]);
+  XAllocNamedColor(td, cmap, "lightblue4",     &othp[14], &othp[14]);
+  XAllocNamedColor(td, cmap, "cornflowerblue", &othp[15], &othp[15]);
+  XAllocNamedColor(td, cmap, "white",          &othp[16], &othp[16]);
+  XAllocNamedColor(td, cmap, "palegreen",      &othp[17], &othp[17]);
+  XAllocNamedColor(td, cmap, "red",            &othp[18], &othp[18]);
 
-printf("enter theta:");
-// skip();scanf("%lf",&theta);
-theta = 0.002;
+  tgc = XCreateGC(td, tw, 0, 0);
 
-printf("enter kappa:");
-// skip();scanf("%lf",&kappa);
-kappa = 0.05;
+  XSetBackground(td, tgc, tb);
 
-printf("enter mu:");
-// skip();scanf("%lf",&mu);
-mu = 0.01;
+  XSelectInput(td, tw, (ButtonPressMask|ExposureMask));
 
-printf("enter gam:");
-// skip();scanf("%lf",&gam);
-gam = 0.0000515;
+  XMapRaised(td, tw);
 
-printf("enter sigma:");
-// skip(); scanf("%lf", &sigma);
-sigma = 0.0;
+  fin = false;
 
-printf("enter no. of rows:");
-// skip();scanf("%d", &nr);
-nr = 250;
+  XNextEvent(td, &te);
+  drawbuttons();
 
-printf("\n %d\n", nr);
+  initialize();
+  picturebig();
 
+  pq = 0;
 
-nc=nr;
-
-
-printf("size of the pixel:");
-// skip();scanf("%d", &sp);
-sp = 2;
-
-
-printf("infile:");
-sscanf("pltest", "%s", infile);
-
-printf("outfile:");
-sscanf("pltest", "%s", outfile);
-
-printf("graphicsfile:");
-sscanf("snowflake.ppm", "%s", graphicsfile);
-
-printf("po:");
-sscanf("gimp", "%s", po);
-
-printf("comments:");
-sscanf("Test file", "%s", comments);
-
-
-
-/* end data*/
-
-
-
-td=XOpenDisplay("");
-ts=DefaultScreen(td);
-tb=XWhitePixel(td,ts);
-tf=XBlackPixel(td,ts);
-
-th.x=0;
-th.y=0;
-
-th.width=nc*sp+100;
-th.height=nr*sp+60+40;
-
-th.flags = PPosition | PSize;
-
-tw = XCreateSimpleWindow(td, DefaultRootWindow(td),th.x,th.y,
-                                th.width, th.height,7, tf,tb);
-
-XSetWindowBorderWidth(td,tw,100);
-
-XSetStandardProperties(td,tw,wn,in,None,argv,argc,&th);
-
-cmap=DefaultColormap(td,ts);
-
-braquecolors64();
-for (i=0;i<kappamax;i++){
-   clr[i].red=red[i]*65535/255;
-   clr[i].green=green[i]*65535/255;
-   clr[i].blue=blue[i]*65535/255;
-   XAllocColor(td,cmap,&clr[i]);
-}
-
-
-bluecolors33();
-
-for (i=0;i<=32;i++){
-
-   clron[i].red=red[i]*65535/255;
-   clron[i].green=green[i]*65535/255;
-   clron[i].blue=blue[i]*65535/255;
-   XAllocColor(td,cmap,&clron[i]);
-}
-
-
-
-
-
-offcolors();
-
-for (i=0;i<=63;i++){
-
-   clroff[63-i].red=red[i]*65535/255;
-   clroff[63-i].green=green[i]*65535/255;
-   clroff[63-i].blue=blue[i]*65535/255;
-   XAllocColor(td,cmap,&clroff[63-i]);
-}
-
-
-
-
-
-XAllocNamedColor(td,cmap,"orange", &othp[0],&othp[0]);
-XAllocNamedColor(td,cmap,"gray90", &othp[1],&othp[1]);
-XAllocNamedColor(td,cmap,"gray80", &othp[2],&othp[2]);
-XAllocNamedColor(td,cmap,"gray70", &othp[3],&othp[3]);
-XAllocNamedColor(td,cmap,"gray60", &othp[4],&othp[4]);
-XAllocNamedColor(td,cmap,"gray50", &othp[5],&othp[5]);
-XAllocNamedColor(td,cmap,"gray40", &othp[6],&othp[6]);
-XAllocNamedColor(td,cmap,"gray30", &othp[7],&othp[7]);
-XAllocNamedColor(td,cmap,"gray25", &othp[8],&othp[8]);
-XAllocNamedColor(td,cmap,"gray20", &othp[9],&othp[9]);
-XAllocNamedColor(td,cmap,"black", &othp[10],&othp[10]);
-XAllocNamedColor(td,cmap,"azure", &othp[11],&othp[11]);
-XAllocNamedColor(td,cmap,"lightblue2", &othp[12],&othp[12]);
-XAllocNamedColor(td,cmap,"lightblue3", &othp[13],&othp[13]);
-XAllocNamedColor(td,cmap,"lightblue4", &othp[14],&othp[14]);
-XAllocNamedColor(td,cmap,"cornflowerblue", &othp[15],&othp[15]);
-XAllocNamedColor(td,cmap,"white", &othp[16],&othp[16]);
-XAllocNamedColor(td,cmap,"palegreen", &othp[17],&othp[17]);
-XAllocNamedColor(td,cmap,"red", &othp[18],&othp[18]);
-
-
-tgc=XCreateGC(td,tw,0,0);
-
-XSetBackground(td,tgc,tb);
-
-
-
-XSelectInput(td,tw,(ButtonPressMask|ExposureMask));
-
-XMapRaised(td,tw);
-
-fin=false;
-
-XNextEvent(td,&te);
-
-drawbuttons();
-
-printf("creating init. st.\n");
-initialize();
-picturebig();
-/*plotstate(); */
-
-pq=0;
-
-
-
-while (fin==false){
-   XNextEvent(td,&te);
-   switch(te.type){
-
+  while (fin == false) {
+    XNextEvent(td, &te);
+    switch (te.type) {
       case ButtonPress:
+        XQueryPointer(td, tw, &rw, &cw, &rootx, &rooty, &posx, &posy, &kgb);
 
-         XQueryPointer(td,tw,&rw,&cw,
-                       &rootx,&rooty,&posx,&posy,&kgb);
+        /* QUIT */
+        if ((posx>=10)&&(posx<=60) &&(posy>=10) && (posy<=30)) {
+          fin=true;
+        }
 
-         if ((posx>=10)&&(posx<=60) &&(posy>=10) && (posy<=30)){
-
-            printf("QUIT\n");
-            fin=true;
-         }
-         else if ((posx>=65)&&(posx<=115) &&(posy>=10) &&
-                  (posy<=30)){
-            printf("pause\n");
-      if (pq%2==0) picturerings(); else picturebig();
-   }
-         else if ((posx>=120)&&(posx<=170) &&(posy>=10) &&
-                  (posy<=30)){
-
-            printf("play\n");
-
-            while((XEventsQueued(td,QueuedAfterReading)==0)&&(pq!=-1)
-                   &&(stop==false)){
-                noac=0;
-                pq++;
-                dynamics();
-                if (pq%10==0){picturebig();}
-
-            }
-         }
-         else if ((posx>=175)&&(posx<=225) &&(posy>=10) &&
-                  (posy<=30)){
-            printf("save to file %s\n", outfile);
-            savepicture();
-      savesnowflake();
-
-         }
-
-         else if ((posx>=230)&&(posx<=280) &&(posy>=10) &&
-                  (posy<=30)){
-
-            printf("read from file %s\n", infile);
-            readpicture(); dynamicspop1(); createbdry();
+        /* PAUSE */
+        else if ((posx>=65)&&(posx<=115) &&(posy>=10) && (posy<=30)) {
+          if (pq % 2 == 0) {
+            picturerings();
+          } else {
             picturebig();
-         }
+          }
+        }
 
-         else {
-            printf("step\n");
-
+        /* PLAY */
+        else if ((posx>=120)&&(posx<=170) &&(posy>=10) && (posy<=30)) {
+          while((XEventsQueued(td,QueuedAfterReading)==0)&&(pq!=-1) &&(stop==false)) {
             noac=0;
             pq++;
             dynamics();
-            picturebig();
-      checkmass();
+            if (pq % 10 == 0) {
+              picturebig();
+            }
 
-         }
-
-
-         break;
-
-
-       case Expose:
-
-          if (te.xexpose.count==0){
-             picturebig();
-             drawbuttons();
           }
-          break;
-   }
+        }
+
+        /* SAVE */
+        else if ((posx>=175)&&(posx<=225) &&(posy>=10) && (posy<=30)) {
+          savepicture();
+          savesnowflake();
+        }
+
+        /* READ */
+        else if ((posx>=230)&&(posx<=280) &&(posy>=10) && (posy<=30)) {
+            readpicture();
+            dynamicspop1();
+            createbdry();
+            picturebig();
+        }
+
+        /* STEP */
+        else {
+          noac=0;
+          pq++;
+          dynamics();
+          picturebig();
+          checkmass();
+        }
+
+        break;
+
+      case Expose:
+        if (te.xexpose.count == 0) {
+          picturebig();
+          drawbuttons();
+        }
+
+        break;
+    }
+  }
+
+  XFreeGC(td,tgc);
+  XDestroyWindow(td,tw);
+  XCloseDisplay(td);
+
+  return 0;
 }
 
-
-
-
-XFreeGC(td,tgc);
-XDestroyWindow(td,tw);
-XCloseDisplay(td);
-
-}
-
+/*************************************************************************************************/
